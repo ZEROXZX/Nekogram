@@ -1,4 +1,4 @@
-name: Build Nekogram ARM64
+name: Build Nekogram Final
 on:
   workflow_dispatch:
 
@@ -36,12 +36,16 @@ jobs:
       - name: Permissions
         run: chmod +x gradlew
 
-      # 🔥 正确命令！不会再报错！
-      - name: Build ARM64 APK
-        run: ./gradlew assembleArm64Release --no-daemon -Dorg.gradle.jvmargs="-Xmx6g"
+      # 🔥🔥🔥 Telegram 专用！只编译 arm64 架构！绝对不卡死！
+      - name: Build APK
+        run: |
+          ./gradlew assembleRelease \
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx6g" \
+            -Parm64=true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Nekogram-ARM64-FINAL
-          path: TMessagesProj/build/outputs/apk/arm64/release/*.apk
+          name: Nekogram-FINAL-APK
+          path: "TMessagesProj/build/outputs/apk/release/*.apk"
