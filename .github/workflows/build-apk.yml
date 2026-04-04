@@ -1,17 +1,15 @@
-name: Build Nekogram APK
+name: Build Nekogram ARM64
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: recursive
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -19,14 +17,13 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Write keystore
+      - name: Create keystore
         run: |
           mkdir -p TMessagesProj/config
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > TMessagesProj/config/release.jks
 
-      - name: Generate local.properties
+      - name: Config signature
         run: |
           cat > TMessagesProj/local.properties << EOF
           sdk.dir=/usr/local/lib/android/sdk
@@ -36,18 +33,15 @@ jobs:
           RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      - name: Grant execute permission for gradlew
+      - name: Permissions
         run: chmod +x gradlew
 
-      - name: Clean build
-        run: ./gradlew clean
+      # 🔥 只编译 ARM64，超快、不卡死、不爆内存
+      - name: Build ARM64 APK
+        run: ./gradlew assembleArm64-v8aRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx6g"
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Upload Release APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Nekogram-Release
-          path: "TMessagesProj/build/outputs/apk/release/*.apk"
-          retention-days: 30
+          name: Nekogram-ARM64-FINAL
+          path: TMessagesProj/build/outputs/apk/arm64-v8a/release/*.apk
