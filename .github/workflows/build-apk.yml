@@ -1,51 +1,55 @@
-name: Build Nekogram Final
+name: Build Nekogram APK
+
 on:
-  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:  # 手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
 
-      - name: Set up JDK 17
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create keystore
-        run: |
-          mkdir -p TMessagesProj/config
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > TMessagesProj/config/release.jks
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Config signature
+      - name: Decode google-services.json
         run: |
-          cat > TMessagesProj/local.properties << EOF
-          sdk.dir=/usr/local/lib/android/sdk
-          RELEASE_STORE_FILE=release.jks
-          RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > TMessagesProj/google-services.json
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+
+      - name: Create local.properties
+        run: |
+          cat > local.properties << EOF
+          storeFile=keystore.jks
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
           EOF
 
-      - name: Permissions
+      - name: Make gradlew executable
         run: chmod +x gradlew
 
-      # 🔥🔥🔥 Telegram 专用！只编译 arm64 架构！绝对不卡死！
-      - name: Build APK
-        run: |
-          ./gradlew assembleRelease \
-            --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx6g" \
-            -Parm64=true
+      - name: Build Release APK
+        run: ./gradlew :TMessagesProj_App:assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Nekogram-FINAL-APK
-          path: "TMessagesProj/build/outputs/apk/release/*.apk"
+          name: Nekogram-APK
+          path: TMessagesProj_App/build/outputs/apk/release/*.apk
+          retention-days: 30
